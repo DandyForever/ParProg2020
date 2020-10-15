@@ -3,9 +3,28 @@
 #include <fstream>
 #include <omp.h>
 
+#define NUM 100000
+
 double calc(uint32_t x_last, uint32_t num_threads)
 {
-  return 0;
+  double* sums = (double*) malloc(NUM * sizeof(double));
+	double res = 0;
+	uint32_t current = 0;
+	while (current < x_last) {
+  	#pragma omp parallel for num_threads(num_threads)
+		for (int i = 0; i < NUM; i++)
+			if (x_last - current - i > 0 && x_last - current - i <= x_last)
+				sums[i] = 1. / (x_last - current - i);
+			else 
+				sums[i] = 0;
+
+  	for (uint32_t i = 0; i < NUM; i++)
+			res += sums[i];
+		current += NUM;
+	}
+  free(sums);
+
+  return res;
 }
 
 int main(int argc, char** argv)
