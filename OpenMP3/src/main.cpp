@@ -9,9 +9,33 @@ double func(double x)
   return sin(x);
 }
 
+double square(double a, double b, double h){
+	return 0.5 * (a + b) * h;
+}
+
+#define NUM 100000
+
 double calc(double x0, double x1, double dx, uint32_t num_threads)
 {
-  return 0;
+	int num_parts = (x1 - x0) / dx + 1;
+	int current = 0;
+	double * inputs = (double*) malloc (NUM * sizeof(double));
+	double res = 0.;
+	while (current < num_parts) {
+		for (int i = 0; i < NUM; i++) {
+			if (i + current < num_parts)
+				inputs[i] = x0 + (i + current) * dx;
+			else
+				inputs[i] = 0;
+		}
+		#pragma omp parallel for reduction(+:res) num_threads(num_threads)
+			for (int i = 0; i < NUM - 1; i++){
+				res += square(func(inputs[i]), func(inputs[i + 1]), dx);
+			}
+		current += NUM - 1;
+	}
+	free (inputs);
+	return res;
 }
 
 int main(int argc, char** argv)
