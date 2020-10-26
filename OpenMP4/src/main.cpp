@@ -2,10 +2,40 @@
 #include <iomanip>
 #include <fstream>
 #include <omp.h>
+#include <vector>
 
-double calc(uint32_t x_last, uint32_t num_threads)
-{
-  return 0;
+double calc(uint32_t x_last, uint32_t num_threads) {
+	std::vector <std::pair<double, double>> ans(num_threads);
+	uint32_t block_size = x_last / num_threads;
+	if (x_last % num_threads != 0)
+		block_size++;
+	x_last--;
+
+	#pragma omp parallel num_threads(num_threads)
+	{
+		uint32_t ind = omp_get_thread_num();
+		uint32_t first = block_size * ind + 1;
+		uint32_t last = block_size * (ind + 1);
+		if (last > x_last)
+			last = x_last;
+
+		double res = 0.;
+		double current = 1.;
+		for (uint32_t i = first; i <= last; i++) {
+			current /= i;
+			res += current;
+		}
+		ans[ind] = std::make_pair(res, current);
+	}
+
+	double res = 1.;
+	double current = 1.;
+	for (uint32_t i = 0; i < num_threads; i++) {
+		res += current * ans[i].first;
+		current *= ans[i].second;
+	}
+
+	return res;
 }
 
 int main(int argc, char** argv)
