@@ -7,16 +7,55 @@
 
 void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
 {
-  if (rank == 0 && size > 0)
-  {
-    for (uint32_t y = 0; y < ySize; y++)
-    {
-      for (uint32_t x = 0; x < xSize; x++)
-      {
-        arr[y*xSize + x] = sin(0.00001*arr[y*xSize + x]);
-      }
-    }
-  }
+	//MPI_Bcast(&arr, 4, MPI_BYTE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&xSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&ySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	//std::cout << "[" << rank << "]" << arr[1] << std::endl;
+	uint32_t block_size = 0, start = 0, end = 0;
+	if (rank == 0 && size > 0){
+		block_size = (ySize + size) / size;
+		for (int i = 1; i < size; i++) {
+			start = i * block_size;
+			end = start + block_size;
+			if (end > ySize)
+				end = ySize;
+			if (start > ySize)
+				start = ySize;
+			MPI_Send (&(arr[start * xSize]), xSize * (end - start), MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+		}
+		start = 0;
+		end = block_size < ySize ? block_size : ySize;
+	} else {
+		block_size = (ySize + size) / size;
+		start = rank * block_size;
+		end = start + block_size;
+		if (end > ySize)
+			end = ySize;
+		if (start > ySize)
+			start = ySize;
+		arr = (double*) malloc (sizeof(double) * xSize * (end - start));
+		MPI_Status status;
+		MPI_Recv(arr, xSize * (end - start), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &status);
+	}
+	for (uint32_t i = 0; i < (end - start) * xSize; i++) {
+		arr[i] = sin(0.00001 * arr[i]);
+	}
+
+	if (rank == 0 && size > 0) {
+		for (int i = 1; i < size; i++) {
+			start = i * block_size;
+			end = start + block_size;
+			if (end > ySize)
+				end = ySize;
+			if (start > ySize)
+				start = ySize;
+			MPI_Status status;
+			MPI_Recv (&(arr[start * xSize]), xSize * (end - start), MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &status);
+		}
+	} else {
+		MPI_Send(arr, xSize * (end - start), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+		free(arr);
+	}
 }
 
 int main(int argc, char** argv)
